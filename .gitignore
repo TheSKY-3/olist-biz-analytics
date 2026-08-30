@@ -1,0 +1,17 @@
+# data
+/data/raw/
+/data/processed/
+
+# env
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# reports
+/reports/figures/*.png
+
+# OS
+.DS_Store

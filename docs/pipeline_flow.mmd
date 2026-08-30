@@ -1,0 +1,11 @@
+flowchart TD
+  A[Download Kaggle CSV -> data/raw] --> B[docker compose up -d mysql]
+  B --> C[ETL load_to_mysql.py
+- create schema
+- aggregate geolocation
+- load tables]
+  C --> D[create_views.py -> semantic views]
+  D --> E[generate_report.py -> reports]
+  D --> F[PowerBI connect MySQL views]
+  E --> G[GitHub publish]
+  F --> G

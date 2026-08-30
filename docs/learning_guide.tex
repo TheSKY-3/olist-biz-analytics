@@ -1,0 +1,125 @@
+% !TEX program = xelatex
+\documentclass[UTF8,11pt]{ctexart}
+
+\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\hypersetup{colorlinks=true, urlcolor=blue, linkcolor=blue}
+\setlist[itemize]{leftmargin=*, itemsep=2pt, topsep=3pt}
+
+\title{Olist 电商数据分析项目学习文档\\（MySQL + Python + PowerBI + Docker）}
+\author{作者：吴柏高（用于作品集与简历）}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{项目定位与学习目标}
+\textbf{目标岗位：}数据分析实习生 / 商业数据分析师（实习）。
+
+\subsection*{你将学到什么}
+\begin{itemize}
+  \item 如何把 Kaggle 多表 CSV 按\textbf{真实业务链路}落库到 MySQL；
+  \item 如何沉淀\textbf{语义层（views）}以支持 BI 与复用分析；
+  \item 如何用 Python 自动化生成经营分析报告（图表 + 结论）；
+  \item 如何在 PowerBI 上构建经营看板并写出指标口径；
+  \item 如何用 Docker 让项目\textbf{一键可复现}，可发布 GitHub。
+\end{itemize}
+
+\section{数据集概览（Olist 多表）}
+数据源：\href{https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data}{Kaggle Olist Brazilian E-Commerce}。
+
+\begin{itemize}
+  \item 订单主表：orders
+  \item 订单明细：order\_items
+  \item 支付流水：order\_payments
+  \item 评价：order\_reviews
+  \item 客户/卖家/商品维表：customers, sellers, products
+  \item 地理映射：geolocation（本项目聚合为 geolocation\_agg）
+  \item 类目翻译：product\_category\_translation
+\end{itemize}
+
+\section{端到端流程（建议先跑通再扩展）}
+\subsection{流程图}
+\begin{center}
+\begin{tikzpicture}[node distance=12mm, every node/.style={draw, rounded corners, align=center, inner sep=6pt}, >=Latex]
+  \node (a) {下载 Kaggle CSV\\放入 data/raw};
+  \node (b) [below=of a] {Docker Compose\\启动 MySQL};
+  \node (c) [below=of b] {Python ETL\\建表 + 清洗 + 导入};
+  \node (d) [below=of c] {MySQL 语义层\\视图与宽表};
+  \node (e) [below left=of d, xshift=-18mm] {Python 分析脚本\\报告 + 图表};
+  \node (f) [below right=of d, xshift=18mm] {PowerBI\\经营看板};
+  \node (g) [below=of e, xshift=18mm] {GitHub 发布\\README + Docs + 产出};
+
+  \draw[->] (a) -- (b);
+  \draw[->] (b) -- (c);
+  \draw[->] (c) -- (d);
+  \draw[->] (d) -- (e);
+  \draw[->] (d) -- (f);
+  \draw[->] (e) -- (g);
+  \draw[->] (f) -- (g);
+\end{tikzpicture}
+\end{center}
+
+\subsection{一键跑通命令}
+\begin{enumerate}
+  \item 启动 MySQL：\texttt{docker compose up -d mysql}
+  \item 导入数据：\texttt{docker compose run --rm etl python -m src.etl.load\_to\_mysql --all}
+  \item 创建视图：\texttt{docker compose run --rm etl python -m src.etl.create\_views}
+  \item 生成报告：\texttt{docker compose run --rm etl python -m src.analysis.generate\_report}
+\end{enumerate}
+
+\section{分析主题与业务问题（简历友好）}
+\subsection{经营总览}
+\begin{itemize}
+  \item GMV、订单量、AOV（月度趋势）
+  \item Top 类目贡献、地域（州）分布
+\end{itemize}
+
+\subsection{履约时效（SLA）}
+\begin{itemize}
+  \item 分解时效：下单到批准、批准到揽收、揽收到签收
+  \item 预计到达 vs 实际到达：延迟分桶，定位慢商家/慢品类/慢地区
+\end{itemize}
+
+\subsection{口碑驱动（Reviews）}
+\begin{itemize}
+  \item 评分分布与差评率
+  \item 延迟对评分的影响（断点或分桶）
+\end{itemize}
+
+\subsection{商家评分卡}
+\begin{itemize}
+  \item 指标：GMV、订单数、on-time rate、平均延迟、平均评分
+  \item 目标：商家分层（S/A/B/C）并给出治理建议
+\end{itemize}
+
+\section{PowerBI 看板设计（学习重点）}
+建议按 4 到 5 页组织：经营总览、履约时效、口碑与差评驱动、商家评分卡、支付结构。
+
+指标口径与 DAX 模板已写在 \texttt{powerbi/dashboard\_spec.md}。
+
+\section{未来可扩展方向（建议做成第二阶段迭代）}
+\begin{itemize}
+  \item \textbf{距离特征}：客户坐标与卖家坐标计算 Haversine 距离，量化距离对延迟/差评的影响。
+  \item \textbf{文本分析}：对 review\_comment\_message 做主题聚类或情感分析，拆出差评原因（物流/破损/售后）。
+  \item \textbf{治理策略模拟}：模拟“治理 Top X 慢商家”带来的 on-time rate 改善空间。
+  \item \textbf{工程增强}：增加 Airflow（或 cron）调度、数据质量校验（Great Expectations）。
+  \item \textbf{数仓分层}：ODS/DWD/DWS/ADS 分层建模，并将语义层抽象为数据集市。
+\end{itemize}
+
+\section{如何把项目写进简历（模板）}
+\begin{itemize}
+  \item 基于 Olist 电商多表数据搭建 MySQL 分析库与订单级 KPI 宽表（GMV/履约时效/延迟分桶/差评率/支付结构）。
+  \item 使用 Python 构建可复现 ETL 与分析脚本，自动生成经营分析报告与可视化图表（趋势、分布、TopN、关联分析）。
+  \item 在 PowerBI 构建经营看板（经营总览、履约 SLA、口碑驱动、商家评分卡），沉淀指标口径与 DAX measures。
+  \item 通过 Docker Compose 实现一键部署与复现，项目可发布 GitHub 作为作品集。
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,36 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: olist-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: olist
+      MYSQL_USER: olist
+      MYSQL_PASSWORD: olist
+    ports:
+      - "3306:3306"
+    command: ["--local-infile=1", "--sql_mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  etl:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: olist-etl
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USER: ${MYSQL_USER:-olist}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-olist}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-olist}
+    depends_on:
+      - mysql
+    volumes:
+      - ./data:/app/data
+      - ./sql:/app/sql
+      - ./src:/app/src
+      - ./reports:/app/reports
+
+volumes:
+  mysql_data:
