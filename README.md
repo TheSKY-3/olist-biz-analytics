@@ -1,10 +1,31 @@
-# Olist 巴西电商｜经营分析 & 履约体验洞察（MySQL + Python + PowerBI + Docker）
+# Olist 电商经营分析｜把 9 张业务表变成经营决策看板
 
-> **定位**：面向 *数据分析实习生 / 商业数据分析师（实习）* 的「可落地业务分析项目」。
-> 
-> **目标**：把 Kaggle 的 Olist 多表电商数据，按真实公司数据链路跑通：**落库 → 数仓/宽表 → KPI 分析 → PowerBI 看板**，并可直接发布到 GitHub 作为作品集。
+![banner](docs/assets/banner.svg)
 
----
+![MySQL](https://img.shields.io/badge/MySQL-8-4479A1) ![Python](https://img.shields.io/badge/Python-3.x-3776AB) ![Power%20BI](https://img.shields.io/badge/Power%20BI-DAX-F2C811) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED) ![License](https://img.shields.io/badge/License-MIT-green)
+
+> 把 Kaggle 的 Olist 多表电商数据，按真实公司的数据链路完整跑通：**落库 → 数仓宽表 → KPI 分析 → 看板交付**。不虚构数字——下面每张图表都能用仓库里的 SQL 和脚本重新生成。
+
+## 核心发现：履约延迟是口碑的头号杀手
+
+把 9.6 万笔有履约时效的订单按延迟程度分桶后，**评分随着延迟一档一档塌下去**：
+
+| 履约表现 | 平均评分 | 订单量 |
+| --- | :---: | :---: |
+| 准时或提前 | **4.29** | 89,936 |
+| 迟到 1-2 天 | 3.52 | 1,370 |
+| 迟到 3-5 天 | 2.47 | 1,400 |
+| 迟到 6 天以上 | **1.74** | 3,764 |
+
+对运营的含义：差评治理的抓手不在客服话术，在**履约时效的最后一公里**——把"迟到 6 天+"的订单量压下去，评分大盘自然回来。
+
+![履约时效与评分](reports/figures/review_by_delay.png)
+
+月度经营基线（以 2018-05 为例：6,873 单、GMV 115 万雷亚尔、AOV 167.8；2018-09 起为数据截断期）：
+
+![月度 GMV](reports/figures/monthly_gmv.png)
+
+更多图表：[月度订单量](reports/figures/monthly_orders.png)、[支付方式占比](reports/figures/payment_type_presence.png)、[Top 类目 GMV](reports/figures/top_categories_gmv.png)。
 
 ## 为什么做这个项目
 
@@ -32,136 +53,49 @@
 
 ---
 
-## 1. 项目亮点（写进简历的那种）
+## 项目亮点
+
 - **多源业务数据建模**：将 9 份 CSV（订单/明细/支付/评价/客户/卖家/商品/地理/类目）落库到 **MySQL**，构建可复用的分析视图（KPI 宽表、商家评分卡、履约时效分解等）。
-- **完整分析闭环**：用 **Python** 生成可复现实验与结论（KPI、异常诊断、驱动因素分析），并自动输出图表与 Markdown 报告。
+- **完整分析闭环**：用 **Python** 生成可复现分析（KPI、异常诊断、驱动因素分析），并自动输出图表与 Markdown 报告。
 - **可视化交付**：提供 **PowerBI 看板设计方案**（页面结构 + DAX 指标口径），支持直连 MySQL 或使用导出 CSV。
 - **工程化可复现**：用 **Docker Compose** 一键启动 MySQL + ETL/分析环境。
 
-> 建议在简历里写成：
-> - “基于 Olist 电商多表数据搭建 MySQL 分析库与 KPI 宽表，沉淀履约时效/评价/支付/商家绩效等指标体系；使用 Python 自动化生成经营周报与可视化图表，并在 PowerBI 构建经营看板（GMV/订单量/履约超时/差评率/商家评分卡）。”
+## 快速开始
 
----
-
-## 2. 数据来源
-- Kaggle：Brazilian E-Commerce Public Dataset by Olist
-- 链接：<https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data>
-
-### 数据文件清单（放在 `data/raw/`）
-将以下 CSV 放入 `data/raw/`：
-- `olist_orders_dataset.csv`
-- `olist_order_items_dataset.csv`
-- `olist_order_payments_dataset.csv`
-- `olist_order_reviews_dataset.csv`
-- `olist_customers_dataset.csv`
-- `olist_sellers_dataset.csv`
-- `olist_products_dataset.csv`
-- `olist_geolocation_dataset.csv`
-- `product_category_name_translation.csv`
-
-> 注意：`olist_geolocation_dataset.csv` 约 100 万行，本项目默认在 ETL 时进行聚合（按 zip 前缀聚合）以加速分析。
-
----
-
-## 3. 端到端流程图
-```mermaid
-flowchart TD
-  A[下载 Kaggle CSV 放入 data/raw] --> B[Docker Compose 启动 MySQL]
-  B --> C[Python ETL: 创建表/清洗/分批导入]
-  C --> D[MySQL 生成分析视图
-(vw_order_kpi / vw_seller_scorecard ...)]
-  D --> E[Python 分析脚本
-生成 reports/ 图表与结论]
-  D --> F[PowerBI 连接 MySQL 视图
-构建经营看板]
-  E --> G[GitHub 发布：README + Docs + 报告样例]
-  F --> G
-```
-
----
-
-## 4. 快速开始（本地一键跑通）
-### 4.1 环境要求
-- Docker Desktop / Docker Engine
-- （可选）PowerBI Desktop（Windows）
-
-### 4.2 一键启动 MySQL
 ```bash
+# 1. 一键启动 MySQL
 docker compose up -d mysql
-```
 
-### 4.3 运行 ETL（建表 + 导入 + 生成视图）
-```bash
-# 第一次运行会创建数据库与表
+# 2. 运行 ETL（建表 + 分批导入 + 生成视图）
 docker compose run --rm etl python -m src.etl.load_to_mysql --all
-
-# 创建分析视图
 docker compose run --rm etl python -m src.etl.create_views
-```
 
-### 4.4 生成分析报告（可复现图表）
-```bash
+# 3. 生成分析报告与图表
 docker compose run --rm etl python -m src.analysis.generate_report
 ```
-产出：
-- `reports/eda_summary.md`
-- `reports/figures/*.png`
 
----
+数据来源：[Kaggle - Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce/data)，9 份 CSV 放入 `data/raw/`（`olist_geolocation_dataset.csv` 约 100 万行，ETL 时按 zip 前缀自动聚合）。Power BI 直连 `localhost:3306` 的 `olist` 库，选择 `vw_order_kpi` / `vw_seller_scorecard` / `vw_category_monthly` 视图即可；无驱动时可运行 `src/analysis/export_for_powerbi.py` 导出 CSV。
 
-## 5. PowerBI 看板（直连 MySQL）
-### 5.1 连接方式
-1. PowerBI Desktop → **获取数据** → **MySQL 数据库**
-2. Server：`localhost`，Port：`3306`
-3. Database：`olist`
-4. 选择视图：
-   - `vw_order_kpi`（订单级 KPI 宽表，强烈建议作为主事实表）
-   - `vw_seller_scorecard`（商家评分卡）
-   - `vw_category_monthly`（类目月度趋势）
+## 常见坑位（提前避雷）
 
-> 若你电脑缺 MySQL 驱动，可使用 `src/analysis/export_for_powerbi.py` 导出 CSV，PowerBI 用“文本/CSV”导入即可。
-
-### 5.2 建议的看板页面
-详见 `powerbi/dashboard_spec.md`（包含指标口径与 DAX 模板）。
-
----
-
-## 6. 目录结构
-```
-.
-├─ data/
-│  ├─ raw/                 # 放 Kaggle 原始 CSV（gitignore）
-│  └─ processed/           # ETL 过程中生成的聚合文件（可选）
-├─ sql/
-│  ├─ 01_schema.sql        # MySQL 建表 DDL
-│  └─ 02_views.sql         # 分析视图（宽表/评分卡/趋势表）
-├─ src/
-│  ├─ etl/
-│  │  ├─ load_to_mysql.py  # 分批导入 + 清洗 + geolocation 聚合
-│  │  └─ create_views.py   # 执行视图 SQL
-│  ├─ analysis/
-│  │  ├─ generate_report.py
-│  │  └─ export_for_powerbi.py
-│  └─ utils/
-│     └─ db.py             # MySQL 连接与工具函数
-├─ reports/
-│  ├─ eda_summary.md
-│  └─ figures/
-├─ powerbi/
-│  └─ dashboard_spec.md
-└─ docs/
-   ├─ learning_guide.tex    # Overleaf LaTeX 学习文档（可扩展方向）
-   └─ resume_bullets.md     # 不同岗位版本简历 bullet 模板
-```
-
----
-
-## 7. 常见坑位（提前避雷）
-- `customers` 表：同一自然人多次下单会出现多个 `customer_id`，复购/留存必须用 `customer_unique_id`。
+- `customers` 表：同一自然人多次下单会出现多个 `customer_id`，**复购/留存必须用 `customer_unique_id`**。
 - `payments` 表：同一订单可能多条支付记录，分析支付结构要按 `order_id` 汇总。
 - `geolocation` 表：同一邮编前缀可能有多条坐标，本项目按 zip 前缀聚合（mean lat/lng + mode city/state）。
 
----
+## 目录结构
 
-## 8. License
+```
+.
+├─ data/raw/              # 放 Kaggle 原始 CSV（gitignore）
+├─ sql/                   # 01_schema.sql 建表 DDL · 02_views.sql 分析视图
+├─ src/etl/               # load_to_mysql · create_views
+├─ src/analysis/          # generate_report · export_for_powerbi
+├─ reports/               # eda_summary.md + figures/（可复现图表）
+├─ powerbi/               # dashboard_spec.md 看板设计与 DAX 口径
+├─ docs/                  # 数据字典 · pipeline 流程图
+└─ docker-compose.yml     # 一键启动
+```
+
+## License
+
 MIT
