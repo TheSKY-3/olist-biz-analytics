@@ -10,9 +10,6 @@ __pycache__/
 *.pyc
 .venv/
 
-# reports
-/reports/figures/*.png
-
 # OS
 .DS_Store
 docs/resume_bullets.md
